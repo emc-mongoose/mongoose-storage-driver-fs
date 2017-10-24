@@ -3,10 +3,11 @@ sudo: required
 addons:
   ulimit:
     nofile: 1048576
-services:
-- docker
-jdk:
-- oraclejdk8
+before_install:
+- curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+- sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+- sudo apt-get update
+- sudo apt-get -y install docker-ce
 script: "./gradlew clean test jar"
 deploy:
   skip_cleanup: true
@@ -23,14 +24,10 @@ env:
     secure: r4Jv836Vk20Ivs4F4R+rZ9IJf8byh3zaCyrmZK+I+u+cNXLLzS0+Yd7v48a1yNaksYhiRtCGG8vqWzS2O14tcIgMveCdIB8v5y5nSOCp9n0jDAmtUikf2tjYL58wPNy1vFdfiCVLLfjI91EdMIwA0B6SJES7FzZbeyfOn8+JJjX+/3KHVR9mgASaVvu23FbTbCqJyUQP18/PIPgPkSuzVwae+1CtyVDh7BtlKYjTwtMPly1Kcs3RLUVbDhO99ps0zdItgI2S/XDJO3wRwvCiR9EfNzaLWT3MPaiPQAQ6dR8wlwiwrPoAM0Ik1jLGMuQBas1TLXn9NcHj4NBq/m4gCGA77M0P1klT2MTxpMdtbJs2+KNW0KwHbUIxstCTM/Pc3TsaHL7W8ln2VqKabQdvgxf89GJWaKE004L0nfo7l9hgPqnQtoXSuyLpa5y6ztg0g37CsK08wMGcrWQ49OW2Gegeros6Nu/k5YFOCAwQ6kKg664wsaptS9dZuL3uI2NS9BVPTBq3wK5ynWzdTF9eiQI8FCaqWW0VsEBbr4eYFsH95VAJTNGI/AsUqBZ9zuxFQ9oJTRDfkq/PjmkHimZJfg/xXM/MalFsUiAZBISLTMKQAG7VbTo273tdh5pmCEYqzhbFSFsYw98s5T/NZksRh63D5hJCcVIqOkZ2kkydWNE=
   DOCKER_PASS:
     secure: OqsGKj/wOVpi3DWh4R4mMDNDNzn2lh9mmr/iDJobRIPHqE6a/t1IylfeO/GOYaIuQWxbLNtqhNGUOcLfn9reIWqFzYVeaCqWahIdLuMMTtX8+NjJHtzvu7tvO/DTs8VNPJh3UJryMXYqfOOgmL0tcmR1OqnIT3DxsmCXizWJBKzZVgnbNlRJU71YZRmMeyKxp3DSKLLWdS6mLHl/tHAOaOfK6KafAwWkMy0mWea8TY5rBTXc3ab/aRmRhHrXEi7WTIVnZ9NvarkJtsPzgQ5O8AgTN0QiJSTZJnfsAV/ejlNtmU3VLCsYr1K2OP+jY1+mtTL7BYxQbGcXQDd6Oie0dO9GJNgTwwfuE/NotFt08wvJ7MJTOJiapuyh/FUDmg6XxTRssqtvGGr54e4eI1DRelmlsRA76jCypVcX6yccQNM83CbAZjkgNE5wfe2pzo54J9CWGaY3ZvTnPWixPbqdgR+Ej5SSZQ9nB85Klk2UpNnyz4C+mSXbU9OjY/PJyFL4+jnIN06jRmY8TLsWYy3tpvQO1Bi7Hv17en5PHclykhayyiC4ztVMoG2ePdB4qhgT43eYSppg7/Smyry/jxmLiRNYGUlHvcpFqMsHrLMDWJ9h/fhJ9Kqfj8W0hBY3aVlwxcjOb54ZL5s24sF8v4mQwPkcPHqGGzgBwvbOLTU01+M=
-before_install:
-- curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-- sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-- sudo apt-get update
-- sudo apt-get -y install docker-ce
 matrix:
   fast_finish: true
 after_success:
+- echo $DOCKER_PASS
 - docker login -u $DOCKER_USER -p $DOCKER_PASS
 - export REPO=emcmongoose/mongoose-storage-driver-fs
 - export TAG=`if [ "$TRAVIS_BRANCH" == "master" ]; then echo "latest"; else echo $TRAVIS_BRANCH; fi`
