@@ -62,11 +62,11 @@ dependencies {
 		"org.apache.logging.log4j:log4j-api:${depVersion.log4j}",
 		"com.github.emc-mongoose:mongoose-api-model:${depVersion.mongoose}",
 		"com.github.emc-mongoose:mongoose-storage-driver-nio:${depVersion.mongoose}",
+		"commons-io:commons-io:2.5",
 	)
 
 	testRuntime(
 		"org.apache.logging.log4j:log4j-core:${depVersion.log4j}",
-		"commons-io:commons-io:2.5",
 	)
 }
 
