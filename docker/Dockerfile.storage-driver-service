@@ -1,6 +1,6 @@
 ARG DRIVER_VERSION
 
-FROM emcmongoose/mongoose-storage-driver-fs:${DRIVER_VERSION}
+FROM emcmongoose/mongoose-storage-driver-service-base:${DRIVER_VERSION}
 
 EXPOSE 1099
 
