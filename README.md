@@ -21,6 +21,25 @@ rates may be:
 
 # Features
 
+* Authentification: N/A
+* Item types: `data` only
+* Path listing input
+* Automatic destination path creation on demand
+* Data item operation types:
+    * `create`, additional modes:
+        * copy
+    * `read`
+        * full
+        * random byte ranges
+        * fixed byte ranges
+        * content verification
+    * `update`
+        * full (overwrite)
+        * random byte ranges
+        * fixed byte ranges (with append mode)
+    * `delete`
+    * `noop`
+
 # Usage
 
 Latest stable pre-built jar file is available at:
