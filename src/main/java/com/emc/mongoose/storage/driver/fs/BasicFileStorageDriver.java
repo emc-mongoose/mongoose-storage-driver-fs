@@ -25,6 +25,7 @@ import org.apache.logging.log4j.Level;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.ReadableByteChannel;
@@ -380,15 +381,16 @@ implements FileStorageDriver<I, O> {
 					final int nextRangeIdx = ioTask.getCurrRangeIdx() + 1;
 					final long nextRangeOffset = getRangeOffset(nextRangeIdx);
 					if(currRange != null) {
-						final int n = currRange.readAndVerify(
-							srcChannel,
-							DirectMemUtil.getThreadLocalReusableBuff(
-								nextRangeOffset - countBytesDone
-							)
+						final ByteBuffer inBuff = DirectMemUtil.getThreadLocalReusableBuff(
+							nextRangeOffset - countBytesDone
 						);
+						final int n = srcChannel.read(inBuff);
 						if(n < 0) {
 							throw new DataSizeException(contentSize, countBytesDone);
 						} else {
+							inBuff.flip();
+							currRange.verify(inBuff);
+							currRange.position(currRange.position() + n);
 							countBytesDone += n;
 							if(countBytesDone == nextRangeOffset) {
 								ioTask.setCurrRangeIdx(nextRangeIdx);
@@ -398,16 +400,18 @@ implements FileStorageDriver<I, O> {
 						throw new AssertionError("Null data range");
 					}
 				} else {
-					final int n = fileItem.readAndVerify(
-						srcChannel,
-						DirectMemUtil.getThreadLocalReusableBuff(
-							contentSize - countBytesDone
-						)
+					final ByteBuffer inBuff = DirectMemUtil.getThreadLocalReusableBuff(
+						contentSize - countBytesDone
 					);
+					final int n = srcChannel.read(inBuff);
 					if(n < 0) {
 						throw new DataSizeException(contentSize, countBytesDone);
+					} else {
+						inBuff.flip();
+						fileItem.verify(inBuff);
+						fileItem.position(fileItem.position() + n);
+						countBytesDone += n;
 					}
-					countBytesDone += n;
 				}
 			} catch(final DataCorruptionException e) {
 				ioTask.setStatus(Status.RESP_FAIL_CORRUPT);
@@ -464,16 +468,21 @@ implements FileStorageDriver<I, O> {
 			final long currRangeSize = range2read.size();
 			final long currPos = getRangeOffset(currRangeIdx) + countBytesDone;
 			srcChannel.position(currPos);
-
-			try {
-				countBytesDone += range2read.readAndVerify(
-					srcChannel,
-					DirectMemUtil.getThreadLocalReusableBuff(currRangeSize - countBytesDone)
-				);
-			} catch(final DataCorruptionException e) {
-				throw new DataCorruptionException(
-					currPos + e.getOffset() - countBytesDone, e.expected, e.actual
-				);
+			final ByteBuffer inBuff = DirectMemUtil.getThreadLocalReusableBuff(currRangeSize - countBytesDone);
+			final int n = srcChannel.read(inBuff);
+			if(n < 0) {
+				throw new DataSizeException(rangesSizeSum, countBytesDone);
+			} else {
+				inBuff.flip();
+				try {
+					range2read.verify(inBuff);
+					range2read.position(range2read.position() + n);
+					countBytesDone += n;
+				} catch(final DataCorruptionException e) {
+					throw new DataCorruptionException(
+						currPos + e.getOffset() - countBytesDone, e.expected, e.actual
+					);
+				}
 			}
 
 			if(Loggers.MSG.isTraceEnabled()) {
@@ -549,20 +558,23 @@ implements FileStorageDriver<I, O> {
 				currRange.position(currOffset - cellOffset);
 				srcChannel.position(currOffset);
 
-				try {
-					rangeBytesDone += currRange.readAndVerify(
-						srcChannel,
-						DirectMemUtil.getThreadLocalReusableBuff(
-							Math.min(
-								fixedRangeSize - countBytesDone,
-								currRange.size() - currRange.position()
-							)
-						)
-					);
-				} catch(final DataCorruptionException e) {
-					throw new DataCorruptionException(
-						currOffset + e.getOffset() - countBytesDone, e.expected, e.actual
-					);
+				final ByteBuffer inBuff = DirectMemUtil.getThreadLocalReusableBuff(
+					Math.min(fixedRangeSize - countBytesDone, currRange.size() - currRange.position())
+				);
+				final int m = srcChannel.read(inBuff);
+				if(m < 0) {
+
+				} else {
+					inBuff.flip();
+					try {
+						currRange.verify(inBuff);
+						currRange.position(currRange.position() + m);
+						rangeBytesDone += m;
+					} catch(final DataCorruptionException e) {
+						throw new DataCorruptionException(
+							currOffset + e.getOffset() - countBytesDone, e.expected, e.actual
+						);
+					}
 				}
 
 				if(rangeBytesDone == fixedRangeSize) {
