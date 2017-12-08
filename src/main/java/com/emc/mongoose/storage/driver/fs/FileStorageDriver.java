@@ -8,11 +8,11 @@ import com.emc.mongoose.api.model.io.task.IoTask;
 import com.emc.mongoose.api.model.item.Item;
 import com.emc.mongoose.storage.driver.nio.base.NioStorageDriver;
 import static com.emc.mongoose.api.model.io.task.IoTask.Status;
-import static com.emc.mongoose.storage.driver.fs.FileIoHelper.CREATE_OPEN_OPT;
-import static com.emc.mongoose.storage.driver.fs.FileIoHelper.READ_OPEN_OPT;
-import static com.emc.mongoose.storage.driver.fs.FileIoHelper.WRITE_OPEN_OPT;
+import static com.emc.mongoose.storage.driver.fs.FsConstants.CREATE_OPEN_OPT;
 import static com.emc.mongoose.storage.driver.fs.FsConstants.FS;
 import static com.emc.mongoose.storage.driver.fs.FsConstants.FS_PROVIDER;
+import static com.emc.mongoose.storage.driver.fs.FsConstants.WRITE_OPEN_OPT;
+
 import com.emc.mongoose.api.common.exception.OmgShootMyFootException;
 import com.emc.mongoose.api.model.data.DataInput;
 import com.emc.mongoose.api.model.io.task.data.DataIoTask;
@@ -42,7 +42,6 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 
 /**
  Created by kurila on 19.07.16.
@@ -52,107 +51,70 @@ extends NioStorageDriverBase<I, O>
 implements NioStorageDriver<I, O> {
 	
 	private final Map<DataIoTask, FileChannel> srcOpenFiles = new ConcurrentHashMap<>();
-	private final Function<DataIoTask, FileChannel> openSrcFileFunc;
-	
 	private final Map<String, File> dstParentDirs = new ConcurrentHashMap<>();
-	private final Function<String, File> createParentDirFunc;
 	private final Map<DataIoTask, FileChannel> dstOpenFiles = new ConcurrentHashMap<>();
-	private final Function<DataIoTask, FileChannel> openDstFileFunc;
-	
+
 	public FileStorageDriver(
 		final String jobName, final DataInput contentSrc, final LoadConfig loadConfig,
 		final StorageConfig storageConfig, final boolean verifyFlag
 	) throws OmgShootMyFootException {
 		super(jobName, contentSrc, loadConfig, storageConfig, verifyFlag);
-		
-		openSrcFileFunc = ioTask -> {
-			final String srcPath = ioTask.getSrcPath();
-			if(srcPath == null || srcPath.isEmpty()) {
-				return null;
-			}
-			final String fileItemName = ioTask.getItem().getName();
-			final Path srcFilePath = srcPath.isEmpty() || fileItemName.startsWith(srcPath) ?
-				FS.getPath(fileItemName) : FS.getPath(srcPath, fileItemName);
-			try {
-				return FS_PROVIDER.newFileChannel(srcFilePath, READ_OPEN_OPT);
-			} catch(final IOException e) {
-				LogUtil.exception(
-					Level.WARN, e, "Failed to open the source channel for the path @ \"{}\"",
-					srcFilePath
-				);
-				ioTask.setStatus(Status.FAIL_IO);
-				return null;
-			}
-		};
-		
-		createParentDirFunc = parentPath -> {
-			try {
-				final File parentDir = FS.getPath(parentPath).toFile();
-				if(!parentDir.exists()) {
-					parentDir.mkdirs();
-				}
-				return parentDir;
-			} catch(final Exception e) {
-				return null;
-			}
-		};
-		
-		openDstFileFunc = ioTask -> {
-			final String fileItemName = ioTask.getItem().getName();
-			final IoType ioType = ioTask.getIoType();
-			final String dstPath = ioTask.getDstPath();
-			final Path itemPath;
-			try {
-				if(dstPath == null || dstPath.isEmpty() || fileItemName.startsWith(dstPath)) {
-					itemPath = FS.getPath(fileItemName);
-				} else {
-					dstParentDirs.computeIfAbsent(dstPath, createParentDirFunc);
-					itemPath = FS.getPath(dstPath, fileItemName);
-				}
-				if(IoType.CREATE.equals(ioType)) {
-					return FS_PROVIDER.newFileChannel(itemPath, CREATE_OPEN_OPT);
-				} else {
-					return FS_PROVIDER.newFileChannel(itemPath, WRITE_OPEN_OPT);
-				}
-			} catch(final AccessDeniedException e) {
-				ioTask.setStatus(Status.RESP_FAIL_AUTH);
-				LogUtil.exception(
-					Level.DEBUG, e, "Access denied to open the output channel for the path \"{}\"",
-					dstPath
-				);
-			} catch(final NoSuchFileException e) {
-				ioTask.setStatus(Status.FAIL_IO);
-				LogUtil.exception(
-					Level.DEBUG, e, "Failed to open the output channel for the path \"{}\"", dstPath
-				);
-			} catch(final FileSystemException e) {
-				final long freeSpace = (new File(e.getFile())).getFreeSpace();
-				if(freeSpace > 0) {
-					ioTask.setStatus(Status.FAIL_IO);
-					LogUtil.exception(
-						Level.DEBUG, e, "Failed to open the output channel for the path \"{}\"",
-						dstPath
-					);
-				} else {
-					ioTask.setStatus(Status.RESP_FAIL_SPACE);
-					LogUtil.exception(Level.DEBUG, e, "No free space for the path \"{}\"", dstPath);
-				}
-			} catch(final IOException e) {
-				ioTask.setStatus(Status.FAIL_IO);
-				LogUtil.exception(
-					Level.DEBUG, e, "Failed to open the output channel for the path \"{}\"", dstPath
-				);
-			} catch(final Throwable cause) {
-				ioTask.setStatus(Status.FAIL_UNKNOWN);
-				LogUtil.exception(
-					Level.WARN, cause, "Failed to open the output channel for the path \"{}\"",
-					dstPath
-				);
-			}
-			return null;
-		};
-		
 		requestAuthTokenFunc = null; // do not use
+	}
+
+	private <F extends DataItem, D extends DataIoTask<F>> FileChannel openDstFile(final D ioTask) {
+		final String fileItemName = ioTask.getItem().getName();
+		final IoType ioType = ioTask.getIoType();
+		final String dstPath = ioTask.getDstPath();
+		final Path itemPath;
+		try {
+			if(dstPath == null || dstPath.isEmpty() || fileItemName.startsWith(dstPath)) {
+				itemPath = FS.getPath(fileItemName);
+			} else {
+				dstParentDirs.computeIfAbsent(dstPath, FsConstants::createParentDir);
+				itemPath = FS.getPath(dstPath, fileItemName);
+			}
+			if(IoType.CREATE.equals(ioType)) {
+				return FS_PROVIDER.newFileChannel(itemPath, CREATE_OPEN_OPT);
+			} else {
+				return FS_PROVIDER.newFileChannel(itemPath, WRITE_OPEN_OPT);
+			}
+		} catch(final AccessDeniedException e) {
+			ioTask.setStatus(IoTask.Status.RESP_FAIL_AUTH);
+			LogUtil.exception(
+				Level.DEBUG, e, "Access denied to open the output channel for the path \"{}\"",
+				dstPath
+			);
+		} catch(final NoSuchFileException e) {
+			ioTask.setStatus(IoTask.Status.FAIL_IO);
+			LogUtil.exception(
+				Level.DEBUG, e, "Failed to open the output channel for the path \"{}\"", dstPath
+			);
+		} catch(final FileSystemException e) {
+			final long freeSpace = (new File(e.getFile())).getFreeSpace();
+			if(freeSpace > 0) {
+				ioTask.setStatus(IoTask.Status.FAIL_IO);
+				LogUtil.exception(
+					Level.DEBUG, e, "Failed to open the output channel for the path \"{}\"",
+					dstPath
+				);
+			} else {
+				ioTask.setStatus(IoTask.Status.RESP_FAIL_SPACE);
+				LogUtil.exception(Level.DEBUG, e, "No free space for the path \"{}\"", dstPath);
+			}
+		} catch(final IOException e) {
+			ioTask.setStatus(IoTask.Status.FAIL_IO);
+			LogUtil.exception(
+				Level.DEBUG, e, "Failed to open the output channel for the path \"{}\"", dstPath
+			);
+		} catch(final Throwable cause) {
+			ioTask.setStatus(IoTask.Status.FAIL_UNKNOWN);
+			LogUtil.exception(
+				Level.WARN, cause, "Failed to open the output channel for the path \"{}\"",
+				dstPath
+			);
+		}
+		return null;
 	}
 	
 	@Override
@@ -211,8 +173,8 @@ implements NioStorageDriver<I, O> {
 					break;
 				
 				case CREATE:
-					dstChannel = dstOpenFiles.computeIfAbsent(ioTask, openDstFileFunc);
-					srcChannel = srcOpenFiles.computeIfAbsent(ioTask, openSrcFileFunc);
+					dstChannel = dstOpenFiles.computeIfAbsent(ioTask, this::openDstFile);
+					srcChannel = srcOpenFiles.computeIfAbsent(ioTask, FsConstants::openSrcFile);
 					if(dstChannel == null) {
 						break;
 					}
@@ -232,7 +194,7 @@ implements NioStorageDriver<I, O> {
 					break;
 				
 				case READ:
-					srcChannel = srcOpenFiles.computeIfAbsent(ioTask, openSrcFileFunc);
+					srcChannel = srcOpenFiles.computeIfAbsent(ioTask, FsConstants::openSrcFile);
 					if(srcChannel == null) {
 						break;
 					}
@@ -311,7 +273,7 @@ implements NioStorageDriver<I, O> {
 					break;
 				
 				case UPDATE:
-					dstChannel = dstOpenFiles.computeIfAbsent(ioTask, openDstFileFunc);
+					dstChannel = dstOpenFiles.computeIfAbsent(ioTask, this::openDstFile);
 					if(dstChannel == null) {
 						break;
 					}
@@ -322,7 +284,9 @@ implements NioStorageDriver<I, O> {
 								finishIoTask((O) ioTask);
 							}
 						} else {
-							throw new AssertionError("Not implemented");
+							if(FileIoHelper.invokeOverwrite(item, ioTask, dstChannel)) {
+								finishIoTask((O) ioTask);
+							}
 						}
 					} else {
 						if(

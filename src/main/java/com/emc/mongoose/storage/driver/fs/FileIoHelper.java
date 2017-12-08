@@ -17,32 +17,10 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
-import java.nio.file.OpenOption;
-import java.nio.file.StandardOpenOption;
 import java.util.BitSet;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 public interface FileIoHelper {
-
-	Set<OpenOption> CREATE_OPEN_OPT = new HashSet<OpenOption>() {
-		{
-			add(StandardOpenOption.CREATE);
-			add(StandardOpenOption.TRUNCATE_EXISTING);
-			add(StandardOpenOption.WRITE);
-		}
-	};
-	Set<OpenOption> READ_OPEN_OPT = new HashSet<OpenOption>() {
-		{
-			add(StandardOpenOption.READ);
-		}
-	};
-	Set<OpenOption> WRITE_OPEN_OPT = new HashSet<OpenOption>() {
-		{
-			add(StandardOpenOption.WRITE);
-		}
-	};
 
 	static <I extends DataItem, O extends DataIoTask<I>> boolean invokeCreate(
 		final I fileItem, final O ioTask, final FileChannel dstChannel
@@ -53,7 +31,7 @@ public interface FileIoHelper {
 			countBytesDone += fileItem.writeToFileChannel(dstChannel, contentSize - countBytesDone);
 			ioTask.setCountBytesDone(countBytesDone);
 		}
-		return countBytesDone == contentSize;
+		return countBytesDone >= contentSize;
 	}
 
 	static <I extends DataItem, O extends DataIoTask<I>> boolean invokeCopy(
@@ -350,6 +328,8 @@ public interface FileIoHelper {
 			if(countBytesDone == currRangeSize) {
 				ioTask.setCurrRangeIdx(currRangeIdx + 1);
 				ioTask.setCountBytesDone(0);
+			} else {
+				ioTask.setCountBytesDone(countBytesDone);
 			}
 		}
 
@@ -525,5 +505,17 @@ public interface FileIoHelper {
 		}
 
 		return updatingRangesSize <= 0 || updatingRangesSize <= countBytesDone;
+	}
+
+	static <I extends DataItem, O extends DataIoTask<I>> boolean invokeOverwrite(
+		final I fileItem, final O ioTask, final FileChannel dstChannel
+	) throws IOException {
+		long countBytesDone = ioTask.getCountBytesDone();
+		final long fileSize = fileItem.size();
+		if(countBytesDone < fileSize && IoTask.Status.ACTIVE.equals(ioTask.getStatus())) {
+			countBytesDone += fileItem.writeToFileChannel(dstChannel, fileSize - countBytesDone);
+			ioTask.setCountBytesDone(countBytesDone);
+		}
+		return countBytesDone >= fileSize;
 	}
 }
