@@ -3,8 +3,11 @@ package com.emc.mongoose.storage.driver.fs;
 import com.emc.mongoose.api.model.item.BasicDataItem;
 import com.emc.mongoose.api.model.item.BasicItemFactory;
 import com.emc.mongoose.api.model.item.DataItem;
+
 import com.github.akurilov.commons.math.Random;
+
 import org.apache.commons.io.FileUtils;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
@@ -74,18 +77,18 @@ public class FileStorageDriverTest {
 				.createNewFile();
 		}
 
-		List<DataItem> items = FileStorageDriver._list(
+		List<DataItem> items = ListingHelper.list(
 			new BasicItemFactory<>(), TMP_DIR_PATH.toString(), prefix, 10,
 			new BasicDataItem("yohoho0099", 0, 0), count
 		);
 		assertEquals(Integer.toString(items.size()), 99, items.size());
 
-		items = FileStorageDriver._list(
+		items = ListingHelper.list(
 			new BasicItemFactory<>(), TMP_DIR_PATH.toString(), prefix, 10, null, 100
 		);
 		assertEquals(100, items.size());
 
-		items = FileStorageDriver._list(
+		items = ListingHelper.list(
 			new BasicItemFactory<>(), TMP_DIR_PATH.toString(), null, 10, null, 2 * count
 		);
 		assertEquals(2 * count, items.size());
