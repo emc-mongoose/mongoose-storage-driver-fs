@@ -511,6 +511,9 @@ public interface FileIoHelper {
 		final I fileItem, final O ioTask, final FileChannel dstChannel
 	) throws IOException {
 		long countBytesDone = ioTask.getCountBytesDone();
+		if(countBytesDone == 0) {
+			dstChannel.position(countBytesDone);
+		}
 		final long fileSize = fileItem.size();
 		if(countBytesDone < fileSize && IoTask.Status.ACTIVE.equals(ioTask.getStatus())) {
 			countBytesDone += fileItem.writeToFileChannel(dstChannel, fileSize - countBytesDone);
