@@ -1,145 +1,396 @@
 package com.emc.mongoose.storage.driver.fs;
 
+import com.github.akurilov.commons.collection.Range;
+
+import com.emc.mongoose.api.model.io.task.path.PathIoTask;
+import com.emc.mongoose.api.model.item.ItemFactory;
 import com.emc.mongoose.api.model.io.task.IoTask;
 import com.emc.mongoose.api.model.item.Item;
-import com.emc.mongoose.api.model.item.ItemFactory;
 import com.emc.mongoose.storage.driver.nio.base.NioStorageDriver;
+import static com.emc.mongoose.api.model.io.task.IoTask.Status;
+import static com.emc.mongoose.storage.driver.fs.FsConstants.CREATE_OPEN_OPT;
+import static com.emc.mongoose.storage.driver.fs.FsConstants.FS;
+import static com.emc.mongoose.storage.driver.fs.FsConstants.FS_PROVIDER;
+import static com.emc.mongoose.storage.driver.fs.FsConstants.WRITE_OPEN_OPT;
+
+import com.emc.mongoose.api.common.exception.OmgShootMyFootException;
+import com.emc.mongoose.api.model.data.DataInput;
+import com.emc.mongoose.api.model.io.task.data.DataIoTask;
+import com.emc.mongoose.api.model.item.DataItem;
+import com.emc.mongoose.api.model.data.DataCorruptionException;
+import com.emc.mongoose.api.model.data.DataSizeException;
+import com.emc.mongoose.api.model.io.IoType;
+import com.emc.mongoose.api.model.storage.Credential;
+import com.emc.mongoose.storage.driver.nio.base.NioStorageDriverBase;
+import com.emc.mongoose.ui.config.load.LoadConfig;
+import com.emc.mongoose.ui.config.storage.StorageConfig;
+import com.emc.mongoose.ui.log.LogUtil;
+import com.emc.mongoose.ui.log.Loggers;
+
+import org.apache.logging.log4j.Level;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.nio.file.DirectoryIteratorException;
-import java.nio.file.DirectoryStream;
-import static java.nio.file.DirectoryStream.Filter;
-import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
-import java.nio.file.OpenOption;
+import java.nio.channels.FileChannel;
+import java.nio.channels.ClosedChannelException;
+import java.nio.file.AccessDeniedException;
+import java.nio.file.FileSystemException;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
-import java.nio.file.spi.FileSystemProvider;
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- Created by andrey on 01.12.16.
+ Created by kurila on 19.07.16.
  */
-public interface FileStorageDriver<I extends Item, O extends IoTask<I>>
-extends NioStorageDriver<I, O> {
-
-	FileSystem FS = FileSystems.getDefault();
-	FileSystemProvider FS_PROVIDER = FS.provider();
+public final class FileStorageDriver<I extends Item, O extends IoTask<I>>
+extends NioStorageDriverBase<I, O>
+implements NioStorageDriver<I, O> {
 	
-	Set<OpenOption> CREATE_OPEN_OPT = new HashSet<OpenOption>() {
-		{
-			add(StandardOpenOption.CREATE);
-			add(StandardOpenOption.TRUNCATE_EXISTING);
-			add(StandardOpenOption.WRITE);
-		}
-	};
-	Set<OpenOption> READ_OPEN_OPT = new HashSet<OpenOption>() {
-		{
-			add(StandardOpenOption.READ);
-		}
-	};
-	Set<OpenOption> WRITE_OPEN_OPT = new HashSet<OpenOption>() {
-		{
-			add(StandardOpenOption.WRITE);
-		}
-	};
+	private final Map<DataIoTask, FileChannel> srcOpenFiles = new ConcurrentHashMap<>();
+	private final Map<String, File> dstParentDirs = new ConcurrentHashMap<>();
+	private final Map<DataIoTask, FileChannel> dstOpenFiles = new ConcurrentHashMap<>();
 
-	DirectoryStream.Filter<Path> ACCEPT_ALL_PATHS_FILTER = entry -> true;
+	public FileStorageDriver(
+		final String jobName, final DataInput contentSrc, final LoadConfig loadConfig,
+		final StorageConfig storageConfig, final boolean verifyFlag
+	) throws OmgShootMyFootException {
+		super(jobName, contentSrc, loadConfig, storageConfig, verifyFlag);
+		requestAuthTokenFunc = null; // do not use
+	}
 
-	final class PrefixDirectoryStreamFilter
-	implements Filter<Path> {
-
-		private final PathMatcher pathPrefixMatcher;
-
-		public PrefixDirectoryStreamFilter(final String prefix) {
-			pathPrefixMatcher = FS.getPathMatcher("glob:" + prefix + "*");
+	private <F extends DataItem, D extends DataIoTask<F>> FileChannel openDstFile(final D ioTask) {
+		final String fileItemName = ioTask.getItem().getName();
+		final IoType ioType = ioTask.getIoType();
+		final String dstPath = ioTask.getDstPath();
+		final Path itemPath;
+		try {
+			if(dstPath == null || dstPath.isEmpty() || fileItemName.startsWith(dstPath)) {
+				itemPath = FS.getPath(fileItemName);
+			} else {
+				dstParentDirs.computeIfAbsent(dstPath, FsConstants::createParentDir);
+				itemPath = FS.getPath(dstPath, fileItemName);
+			}
+			if(IoType.CREATE.equals(ioType)) {
+				return FS_PROVIDER.newFileChannel(itemPath, CREATE_OPEN_OPT);
+			} else {
+				return FS_PROVIDER.newFileChannel(itemPath, WRITE_OPEN_OPT);
+			}
+		} catch(final AccessDeniedException e) {
+			ioTask.setStatus(IoTask.Status.RESP_FAIL_AUTH);
+			LogUtil.exception(
+				Level.DEBUG, e, "Access denied to open the output channel for the path \"{}\"",
+				dstPath
+			);
+		} catch(final NoSuchFileException e) {
+			ioTask.setStatus(IoTask.Status.FAIL_IO);
+			LogUtil.exception(
+				Level.DEBUG, e, "Failed to open the output channel for the path \"{}\"", dstPath
+			);
+		} catch(final FileSystemException e) {
+			final long freeSpace = (new File(e.getFile())).getFreeSpace();
+			if(freeSpace > 0) {
+				ioTask.setStatus(IoTask.Status.FAIL_IO);
+				LogUtil.exception(
+					Level.DEBUG, e, "Failed to open the output channel for the path \"{}\"",
+					dstPath
+				);
+			} else {
+				ioTask.setStatus(IoTask.Status.RESP_FAIL_SPACE);
+				LogUtil.exception(Level.DEBUG, e, "No free space for the path \"{}\"", dstPath);
+			}
+		} catch(final IOException e) {
+			ioTask.setStatus(IoTask.Status.FAIL_IO);
+			LogUtil.exception(
+				Level.DEBUG, e, "Failed to open the output channel for the path \"{}\"", dstPath
+			);
+		} catch(final Throwable cause) {
+			ioTask.setStatus(IoTask.Status.FAIL_UNKNOWN);
+			LogUtil.exception(
+				Level.WARN, cause, "Failed to open the output channel for the path \"{}\"",
+				dstPath
+			);
 		}
-
-		@Override
-		public final boolean accept(final Path entry)
-		throws IOException {
-			return pathPrefixMatcher.matches(entry.getFileName());
+		return null;
+	}
+	
+	@Override
+	protected final String requestNewPath(final String path) {
+		final File pathFile = FS.getPath(path).toFile();
+		if(!pathFile.exists()) {
+			pathFile.mkdirs();
 		}
+		return path;
+	}
+	
+	@Override
+	protected final String requestNewAuthToken(final Credential credential) {
+		throw new AssertionError("Should not be invoked");
 	}
 
 	@Override
-	default List<I> list(
+	public List<I> list(
 		final ItemFactory<I> itemFactory, final String path, final String prefix, final int idRadix,
 		final I lastPrevItem, final int count
 	) throws IOException {
-		return _list(itemFactory, path, prefix, idRadix, lastPrevItem, count);
+		return ListingHelper.list(itemFactory, path, prefix, idRadix, lastPrevItem, count);
 	}
 
-	static <I extends Item> List<I> _list(
-		final ItemFactory<I> itemFactory, final String path, final String prefix, final int idRadix,
-		final I lastPrevItem, final int count
-	) throws IOException {
+	@Override
+	public final void adjustIoBuffers(final long avgTransferSize, final IoType ioType) {
+	}
 
-		final Filter<Path> filter = (prefix == null || prefix.isEmpty()) ?
-			ACCEPT_ALL_PATHS_FILTER : new PrefixDirectoryStreamFilter(prefix);
-		final List<I> buff = new ArrayList<>(count);
+	@Override
+	protected final void invokeNio(final O ioTask) {
+		if(ioTask instanceof DataIoTask) {
+			invokeFileNio((DataIoTask<? extends DataItem>) ioTask);
+		} else if(ioTask instanceof PathIoTask) {
+			throw new AssertionError("Not implemented");
+		} else {
+			throw new AssertionError("Not implemented");
+		}
+	}
+	
+	protected final <F extends DataItem, D extends DataIoTask<F>> void invokeFileNio(
+		final D ioTask
+	) {
 
-		try(
-			final DirectoryStream<Path> dirStream = FS_PROVIDER.newDirectoryStream(
-				Paths.get(path), filter
-			)
-		) {
-			final int prefixLength = (prefix == null || prefix.isEmpty()) ?
-				0 : prefix.length();
+		FileChannel srcChannel = null;
+		FileChannel dstChannel = null;
 
-			File nextFile;
-			String nextFileName;
-			I nextItem;
+		try {
 
-			final String lastPrevItemName;
-			boolean lastPrevItemNameFound;
-			if(lastPrevItem == null) {
-				lastPrevItemName = null;
-				lastPrevItemNameFound = true;
-			} else {
-				lastPrevItemName = lastPrevItem.getName();
-				lastPrevItemNameFound = false;
-			}
+			final IoType ioType = ioTask.getIoType();
+			final F item = ioTask.getItem();
 
-			for(final Path nextPath : dirStream) {
-				nextFile = new File(nextPath.toString());
-				nextFileName = nextFile.getName();
-				if(lastPrevItemNameFound) {
-					try {
-						final long offset;
-						if(prefixLength > 0) {
-							// only items with the prefix are passed so it's safe
-							offset = Long.parseLong(nextFileName.substring(prefixLength), idRadix);
-						} else {
-							offset = Long.parseLong(nextFileName, idRadix);
-						}
-						nextItem = itemFactory.getItem(
-							nextFile.getAbsolutePath(), offset, nextFile.length()
-						);
-					} catch(final NumberFormatException e) {
-						// try to not use the offset (read verification should be disabled)
-						nextItem = itemFactory.getItem(
-							nextFile.getAbsolutePath(), 0, nextFile.length()
-						);
-					}
-					buff.add(nextItem);
-					if(count == buff.size()) {
+			switch(ioType) {
+
+				case NOOP:
+					finishIoTask((O) ioTask);
+					break;
+				
+				case CREATE:
+					dstChannel = dstOpenFiles.computeIfAbsent(ioTask, this::openDstFile);
+					srcChannel = srcOpenFiles.computeIfAbsent(ioTask, FsConstants::openSrcFile);
+					if(dstChannel == null) {
 						break;
 					}
-				} else {
-					lastPrevItemNameFound = nextFileName.equals(lastPrevItemName);
-				}
+					if(srcChannel == null) {
+						if(ioTask.getStatus().equals(Status.FAIL_IO)) {
+							break;
+						} else {
+							if(FileIoHelper.invokeCreate(item, ioTask, dstChannel)) {
+								finishIoTask((O) ioTask);
+							}
+						}
+					} else { // copy the data from the src channel to the dst channel
+						if(FileIoHelper.invokeCopy(item, ioTask, srcChannel, dstChannel)) {
+							finishIoTask((O) ioTask);
+						}
+					}
+					break;
+				
+				case READ:
+					srcChannel = srcOpenFiles.computeIfAbsent(ioTask, FsConstants::openSrcFile);
+					if(srcChannel == null) {
+						break;
+					}
+					final List<Range> fixedRangesToRead = ioTask.getFixedRanges();
+					if(verifyFlag) {
+						try {
+							if(fixedRangesToRead == null || fixedRangesToRead.isEmpty()) {
+								if(ioTask.hasMarkedRanges()) {
+									if(
+										FileIoHelper.invokeReadAndVerifyRandomRanges(
+											item, ioTask, srcChannel,
+											ioTask.getMarkedRangesMaskPair()
+										)
+									) {
+										finishIoTask((O) ioTask);
+									}
+								} else {
+									if(FileIoHelper.invokeReadAndVerify(item, ioTask, srcChannel)) {
+										finishIoTask((O) ioTask);
+									}
+								}
+							} else {
+								if(
+									FileIoHelper.invokeReadAndVerifyFixedRanges(
+										item, ioTask, srcChannel, fixedRangesToRead
+									)
+								) {
+									finishIoTask((O) ioTask);
+								};
+							}
+						} catch(final DataSizeException e) {
+							ioTask.setStatus(Status.RESP_FAIL_CORRUPT);
+							final long
+								countBytesDone = ioTask.getCountBytesDone() + e.getOffset();
+							ioTask.setCountBytesDone(countBytesDone);
+							Loggers.MSG.debug(
+								"{}: content size mismatch, expected: {}, actual: {}",
+								item.getName(), item.size(), countBytesDone
+							);
+						} catch(final DataCorruptionException e) {
+							ioTask.setStatus(Status.RESP_FAIL_CORRUPT);
+							final long countBytesDone = ioTask.getCountBytesDone() + e.getOffset();
+							ioTask.setCountBytesDone(countBytesDone);
+							Loggers.MSG.debug(
+								"{}: content mismatch @ offset {}, expected: {}, actual: {} ",
+								item.getName(), countBytesDone,
+								String.format("\"0x%X\"", (int) (e.expected & 0xFF)),
+								String.format("\"0x%X\"", (int) (e.actual & 0xFF))
+							);
+						}
+					} else {
+						if(fixedRangesToRead == null || fixedRangesToRead.isEmpty()) {
+							if(ioTask.hasMarkedRanges()) {
+								if(
+									FileIoHelper.invokeReadRandomRanges(
+										item, ioTask, srcChannel, ioTask.getMarkedRangesMaskPair()
+									)
+								) {
+									finishIoTask((O) ioTask);
+								}
+							} else {
+								if(FileIoHelper.invokeRead(item, ioTask, srcChannel)) {
+									finishIoTask((O) ioTask);
+								}
+							}
+						} else {
+							if(
+								FileIoHelper.invokeReadFixedRanges(
+									item, ioTask, srcChannel, fixedRangesToRead
+								)
+							) {
+								finishIoTask((O) ioTask);
+							}
+						}
+					}
+					break;
+				
+				case UPDATE:
+					dstChannel = dstOpenFiles.computeIfAbsent(ioTask, this::openDstFile);
+					if(dstChannel == null) {
+						break;
+					}
+					final List<Range> fixedRangesToUpdate = ioTask.getFixedRanges();
+					if(fixedRangesToUpdate == null || fixedRangesToUpdate.isEmpty()) {
+						if(ioTask.hasMarkedRanges()) {
+							if(FileIoHelper.invokeRandomRangesUpdate(item, ioTask, dstChannel)) {
+								finishIoTask((O) ioTask);
+							}
+						} else {
+							if(FileIoHelper.invokeOverwrite(item, ioTask, dstChannel)) {
+								finishIoTask((O) ioTask);
+							}
+						}
+					} else {
+						if(
+							FileIoHelper.invokeFixedRangesUpdate(
+								item, ioTask, dstChannel, fixedRangesToUpdate
+							)
+						) {
+							finishIoTask((O) ioTask);
+						}
+					}
+					break;
+				
+				case DELETE:
+					if(invokeDelete((O) ioTask)) {
+						finishIoTask((O) ioTask);
+					}
+					break;
+				
+				default:
+					ioTask.setStatus(Status.FAIL_UNKNOWN);
+					Loggers.ERR.fatal("Unknown load type \"{}\"", ioType);
+					break;
 			}
-		} catch(final DirectoryIteratorException e) {
-			throw e.getCause(); // according the JDK documentation
+		} catch(final FileNotFoundException e) {
+			LogUtil.exception(Level.WARN, e, ioTask.toString());
+			ioTask.setStatus(Status.RESP_FAIL_NOT_FOUND);
+		} catch(final AccessDeniedException e) {
+			LogUtil.exception(Level.WARN, e, ioTask.toString());
+			ioTask.setStatus(Status.RESP_FAIL_AUTH);
+		} catch(final ClosedChannelException e) {
+			ioTask.setStatus(Status.INTERRUPTED);
+		} catch(final IOException e) {
+			LogUtil.exception(Level.WARN, e, ioTask.toString());
+			ioTask.setStatus(Status.FAIL_IO);
+		} catch(final NullPointerException e) {
+			if(!isClosed()) { // shared content source may be already closed from the load generator
+				e.printStackTrace(System.out);
+				ioTask.setStatus(Status.FAIL_UNKNOWN);
+			} else {
+				Loggers.ERR.debug("I/O task caused NPE while being interrupted: {}", ioTask);
+			}
+		} catch(final Throwable e) {
+			// should be Throwable here in order to make the closing block further always reachable
+			// the same effect may be reached using "finally" block after this "catch"
+			e.printStackTrace(System.err);
+			ioTask.setStatus(Status.FAIL_UNKNOWN);
 		}
 
-		return buff;
+		if(!Status.ACTIVE.equals(ioTask.getStatus())) {
+
+			if(srcChannel != null) {
+				srcOpenFiles.remove(ioTask);
+				if(srcChannel.isOpen()) {
+					try {
+						srcChannel.close();
+					} catch(final IOException e) {
+						Loggers.ERR.warn("Failed to close the source I/O channel");
+					}
+				}
+			}
+
+			if(dstChannel != null) {
+				dstOpenFiles.remove(ioTask);
+				if(dstChannel.isOpen()) {
+					try {
+						dstChannel.close();
+					} catch(final IOException e) {
+						Loggers.ERR.warn("Failed to close the destination I/O channel");
+					}
+				}
+			}
+		}
+	}
+
+	private boolean invokeDelete(final O ioTask)
+	throws IOException {
+		final String dstPath = ioTask.getDstPath();
+		final I fileItem = ioTask.getItem();
+		FS_PROVIDER.delete(
+			dstPath == null ? Paths.get(fileItem.getName()) : Paths.get(dstPath, fileItem.getName())
+		);
+		return true;
+	}
+
+	@Override
+	protected final void doClose()
+	throws IOException {
+		super.doClose();
+		for(final FileChannel srcChannel : srcOpenFiles.values()) {
+			if(srcChannel.isOpen()) {
+				srcChannel.close();
+			}
+		}
+		srcOpenFiles.clear();
+		for(final FileChannel dstChannel : dstOpenFiles.values()) {
+			if(dstChannel.isOpen()) {
+				dstChannel.close();
+			}
+		}
+		dstOpenFiles.clear();
+	}
+	
+	@Override
+	public final String toString() {
+		return String.format(super.toString(), "fs");
 	}
 }
