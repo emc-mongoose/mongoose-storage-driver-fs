@@ -281,6 +281,7 @@ implements NioStorageDriver<I, O> {
 					if(fixedRangesToUpdate == null || fixedRangesToUpdate.isEmpty()) {
 						if(ioTask.hasMarkedRanges()) {
 							if(FileIoHelper.invokeRandomRangesUpdate(item, ioTask, dstChannel)) {
+								item.commitUpdatedRanges(ioTask.getMarkedRangesMaskPair());
 								finishIoTask((O) ioTask);
 							}
 						} else {
