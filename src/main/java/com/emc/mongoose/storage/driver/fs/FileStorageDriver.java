@@ -282,6 +282,7 @@ implements NioStorageDriver<I, O> {
 						if(ioTask.hasMarkedRanges()) {
 							if(FileIoHelper.invokeRandomRangesUpdate(item, ioTask, dstChannel)) {
 								item.commitUpdatedRanges(ioTask.getMarkedRangesMaskPair());
+								ioTask.setCountBytesDone(ioTask.getMarkedRangesSize());
 								finishIoTask((O) ioTask);
 							}
 						} else {
@@ -295,6 +296,7 @@ implements NioStorageDriver<I, O> {
 								item, ioTask, dstChannel, fixedRangesToUpdate
 							)
 						) {
+							ioTask.setCountBytesDone(ioTask.getMarkedRangesSize());
 							finishIoTask((O) ioTask);
 						}
 					}

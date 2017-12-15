@@ -442,6 +442,7 @@ public interface FileIoHelper {
 			}
 		} else {
 			fileItem.commitUpdatedRanges(ioTask.getMarkedRangesMaskPair());
+			ioTask.setCountBytesDone(updatingRangesSize);
 		}
 
 		return updatingRangesSize <= 0 || updatingRangesSize <= countBytesDone;
