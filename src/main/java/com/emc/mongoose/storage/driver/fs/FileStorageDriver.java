@@ -209,6 +209,7 @@ implements NioStorageDriver<I, O> {
 											ioTask.getMarkedRangesMaskPair()
 										)
 									) {
+										ioTask.setCountBytesDone(ioTask.getMarkedRangesSize());
 										finishIoTask((O) ioTask);
 									}
 								} else {
