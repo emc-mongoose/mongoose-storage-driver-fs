@@ -51,7 +51,7 @@ public class FileStorageDriverTest {
 		}
 	}
 
-	@Test @Ignore
+	@Test
 	public final void testList()
 	throws Exception {
 
@@ -77,11 +77,12 @@ public class FileStorageDriverTest {
 				.createNewFile();
 		}
 
+		//counting files after "yohoho0099"
 		List<DataItem> items = ListingHelper.list(
 			new BasicItemFactory<>(), TMP_DIR_PATH.toString(), prefix, 10,
 			new BasicDataItem("yohoho0099", 0, 0), count
 		);
-		assertEquals(Integer.toString(items.size()), 99, items.size());
+		assertEquals(Integer.toString(items.size()), 900, items.size());
 
 		items = ListingHelper.list(
 			new BasicItemFactory<>(), TMP_DIR_PATH.toString(), prefix, 10, null, 100
