@@ -2,6 +2,7 @@ package com.emc.mongoose.storage.driver.fs;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -21,7 +22,7 @@ public class WindowsFileSystemTest {
 		path = FileSystems.getDefault().getPath("D:", "tmp", "file.txt");
 	}
 
-	@Test
+	@Test @Ignore
 	public final void test()
 	throws Exception {
 		new File(path.toString()).createNewFile();

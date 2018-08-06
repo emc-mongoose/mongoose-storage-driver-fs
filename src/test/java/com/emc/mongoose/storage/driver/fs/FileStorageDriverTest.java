@@ -7,6 +7,7 @@ import com.github.akurilov.commons.math.Random;
 import org.apache.commons.io.FileUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -47,7 +48,7 @@ public class FileStorageDriverTest {
 		}
 	}
 
-	@Test
+	@Test @Ignore
 	public final void testList()
 	throws Exception {
 		final String prefix = "yohoho";
