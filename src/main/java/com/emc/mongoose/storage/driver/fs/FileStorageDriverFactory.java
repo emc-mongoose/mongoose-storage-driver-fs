@@ -8,10 +8,8 @@ import com.emc.mongoose.storage.driver.base.StorageDriverFactory;
 import com.emc.mongoose.ui.config.load.LoadConfig;
 import com.emc.mongoose.ui.config.storage.StorageConfig;
 
-public class FileStorageDriverFactory<
-	I extends Item, O extends IoTask<I>, T extends FileStorageDriver<I, O>
->
-implements StorageDriverFactory<I, O, T> {
+public class FileStorageDriverFactory<I extends Item, O extends IoTask<I>, T extends FileStorageDriver<I, O>>
+	implements StorageDriverFactory<I, O, T> {
 
 	private static final String NAME = "fs";
 
@@ -22,11 +20,10 @@ implements StorageDriverFactory<I, O, T> {
 
 	@Override
 	public T create(
-		final String stepId, final DataInput dataInput, final LoadConfig loadConfig,
-		final StorageConfig storageConfig, final boolean verifyFlag
-	) throws OmgShootMyFootException, InterruptedException {
-		return (T) new FileStorageDriver<>(
-			stepId, dataInput, loadConfig, storageConfig, verifyFlag
-		);
+		final String stepId, final DataInput dataInput, final LoadConfig loadConfig, final StorageConfig storageConfig,
+		final boolean verifyFlag
+	)
+	throws OmgShootMyFootException, InterruptedException {
+		return (T) new FileStorageDriver<>(stepId, dataInput, loadConfig, storageConfig, verifyFlag);
 	}
 }
