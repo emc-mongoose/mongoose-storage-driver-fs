@@ -1,9 +1,7 @@
-package com.emc.mongoose.storage.driver.fs;
+package com.emc.mongoose.storage.driver.coop.nio.fs;
 
-import com.emc.mongoose.api.model.item.Item;
-import com.emc.mongoose.api.model.item.ItemFactory;
-import static com.emc.mongoose.storage.driver.fs.FsConstants.FS;
-import static com.emc.mongoose.storage.driver.fs.FsConstants.FS_PROVIDER;
+import com.emc.mongoose.base.item.Item;
+import com.emc.mongoose.base.item.ItemFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -20,37 +18,31 @@ public interface ListingHelper {
 	DirectoryStream.Filter<Path> ACCEPT_ALL_PATHS_FILTER = entry -> true;
 
 	final class PrefixDirectoryStreamFilter
-		implements DirectoryStream.Filter<Path> {
+					implements DirectoryStream.Filter<Path> {
 
 		private final PathMatcher pathPrefixMatcher;
 
 		public PrefixDirectoryStreamFilter(final String prefix) {
-			pathPrefixMatcher = FS.getPathMatcher("glob:" + prefix + "*");
+			pathPrefixMatcher = FsConstants.FS.getPathMatcher("glob:" + prefix + "*");
 		}
 
 		@Override
 		public final boolean accept(final Path entry)
-		throws IOException {
+						throws IOException {
 			return pathPrefixMatcher.matches(entry.getFileName());
 		}
 	}
 
 	static <I extends Item> List<I> list(
-		final ItemFactory<I> itemFactory, final String path, final String prefix, final int idRadix,
-		final I lastPrevItem, final int count
-	) throws IOException {
+					final ItemFactory<I> itemFactory, final String path, final String prefix, final int idRadix,
+					final I lastPrevItem, final int count) throws IOException {
 
-		final DirectoryStream.Filter<Path> filter = (prefix == null || prefix.isEmpty()) ?
-			ACCEPT_ALL_PATHS_FILTER : new PrefixDirectoryStreamFilter(prefix);
+		final DirectoryStream.Filter<Path> filter = (prefix == null || prefix.isEmpty()) ? ACCEPT_ALL_PATHS_FILTER : new PrefixDirectoryStreamFilter(prefix);
 		final List<I> buff = new ArrayList<>(count);
 
-		try(
-			final DirectoryStream<Path> dirStream = FS_PROVIDER.newDirectoryStream(
-				Paths.get(path), filter
-			)
-		) {
-			final int prefixLength = (prefix == null || prefix.isEmpty()) ?
-				0 : prefix.length();
+		try (
+						final DirectoryStream<Path> dirStream = FsConstants.FS_PROVIDER.newDirectoryStream(Paths.get(path), filter)) {
+			final int prefixLength = (prefix == null || prefix.isEmpty()) ? 0 : prefix.length();
 
 			File nextFile;
 			String nextFileName;
@@ -58,44 +50,40 @@ public interface ListingHelper {
 
 			final String lastPrevItemName;
 			boolean lastPrevItemNameFound;
-			if(lastPrevItem == null) {
+			if (lastPrevItem == null) {
 				lastPrevItemName = null;
 				lastPrevItemNameFound = true;
 			} else {
-				lastPrevItemName = lastPrevItem.getName();
+				lastPrevItemName = lastPrevItem.name();
 				lastPrevItemNameFound = false;
 			}
 
-			for(final Path nextPath : dirStream) {
+			for (final Path nextPath : dirStream) {
 				nextFile = new File(nextPath.toString());
-				nextFileName = nextFile.getName();
-				if(lastPrevItemNameFound) {
+				nextFileName = nextFile.getAbsolutePath();
+				if (lastPrevItemNameFound) {
 					try {
 						final long offset;
-						if(prefixLength > 0) {
+						if (prefixLength > 0) {
 							// only items with the prefix are passed so it's safe
 							offset = Long.parseLong(nextFileName.substring(prefixLength), idRadix);
 						} else {
 							offset = Long.parseLong(nextFileName, idRadix);
 						}
-						nextItem = itemFactory.getItem(
-							nextFile.getAbsolutePath(), offset, nextFile.length()
-						);
-					} catch(final NumberFormatException e) {
+						nextItem = itemFactory.getItem(nextFile.getAbsolutePath(), offset, nextFile.length());
+					} catch (final NumberFormatException e) {
 						// try to not use the offset (read verification should be disabled)
-						nextItem = itemFactory.getItem(
-							nextFile.getAbsolutePath(), 0, nextFile.length()
-						);
+						nextItem = itemFactory.getItem(nextFile.getAbsolutePath(), 0, nextFile.length());
 					}
 					buff.add(nextItem);
-					if(count == buff.size()) {
+					if (count == buff.size()) {
 						break;
 					}
 				} else {
 					lastPrevItemNameFound = nextFileName.equals(lastPrevItemName);
 				}
 			}
-		} catch(final DirectoryIteratorException e) {
+		} catch (final DirectoryIteratorException e) {
 			throw e.getCause(); // according the JDK documentation
 		}
 
