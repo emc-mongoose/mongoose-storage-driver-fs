@@ -3,8 +3,8 @@ image:
 
 environment:
   JAVA_HOME: "C:\\Progra~1\\Java\\jdk11"
-  HOME_DIR: C:\projects\mongoose
-  PATH_TO_TEST_LOGS: "C:\\projects\\mongoose\\base\\build\\robotest"
+  HOME_DIR: C:\projects\mongoose-storage-driver-fs
+  PATH_TO_TEST_LOGS: "C:\\projects\\mongoose-storage-driver-fs\\\build\\robotest"
   PYTHON: "C:\\Python37-x64"
   PYTHON_VERSION: 3.7
   PYTHON_ARCH: 64
@@ -27,6 +27,7 @@ before_test:
   - cmd: "%PYTHON%\\python.exe -m pip install -U robotframework"
   - cmd: "%PYTHON%\\python.exe -m pip install -U robotframework-requests"
   - cmd: mkdir %PATH_TO_TEST_LOGS%
+  # TODO also get mongoose base jar, coop driver, nio driver and put them to the proper place
 
 test_script:
   - cmd: robot --outputdir %PATH_TO_TEST_LOGS% --suite api.storage --include "fs" base\src\test\robot
