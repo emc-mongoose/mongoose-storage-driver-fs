@@ -24,7 +24,7 @@ before_build:
   - cmd: cd %MAVEN_HOME%
   - ps: ls -r
   - cmd: ECHO %MAVEN_HOME%
-  - cmd: COPY %MAVEN_HOME%\mongoose-storage-driver-nio\4.2.2\mongoose-storage-driver-nio-4.2.1.jar  %HOME_DIR%
+  - cmd: COPY %MAVEN_HOME%\mongoose-storage-driver-nio\4.2.2\mongoose-storage-driver-nio-4.2.2.jar  %HOME_DIR%
   - cmd: COPY %MAVEN_HOME%\mongoose-storage-driver-coop\*\mongoose-storage-driver-coop-*.jar %HOME_DIR%
   - cmd: COPY %MAVEN_HOME%\mongoose-base\4.2.1\mongoose-base-4.2.1.jar %HOME_DIR%
 
