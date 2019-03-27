@@ -3,7 +3,7 @@ image:
 
 environment:
   JAVA_HOME: "C:\\Progra~1\\Java\\jdk11"
-  MAVEN_HOME: " C:\\Users\\appveyor\\.m2\\repository\\com\\github\\emc-mongoose"
+  MAVEN_HOME: "C:\\Users\\appveyor\\.m2\\repository\\com\\github\\emc-mongoose"
 #  HOME_DIR: C:\projects\mongoose-storage-driver-fs
   HOME_DIR: "C:\\Users\\appveyor\\.mongoose\\ext\\"
   PATH_TO_TEST_LOGS: "C:\\projects\\mongoose-storage-driver-fs\\\build\\robotest"
@@ -24,7 +24,7 @@ before_build:
   - cmd: cd %MAVEN_HOME%
   - cmd: mkdir %HOME_DIR%
   - ps: ls -r
-  - ps: cp %MAVEN_HOME%\mongoose-storage-driver-coop\**\mongoose-storage-driver-coop-*.jar %HOME_DIR%
+  - ps: cp mongoose-storage-driver-coop\**\mongoose-storage-driver-coop-*.jar %HOME_DIR%
   - cmd: COPY %MAVEN_HOME%\mongoose-storage-driver-nio\4.2.2\mongoose-storage-driver-nio-4.2.2.jar  %HOME_DIR%
   - cmd: COPY %MAVEN_HOME%\mongoose-storage-driver-coop\*\mongoose-storage-driver-coop-*.jar %HOME_DIR%
   - cmd: COPY %MAVEN_HOME%\mongoose-base\4.2.1\mongoose-base-4.2.1.jar %HOME_DIR%
