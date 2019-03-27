@@ -24,7 +24,7 @@ before_build:
   - cmd: cd %MAVEN_HOME%
   - cmd: mkdir %HOME_DIR%
   - ps: cp mongoose-*\**\mongoose-*.jar %HOME_DIR%
-  - cmd: for /R %MAVEN_HOME% %%f in (*.jar) do copy %%f %HOME_DIR%
+  - cmd: for /R %MAVEN_HOME% %%f in (mongoose-storage-driver-*.jar) do copy %%f %HOME_DIR%
   - cmd: cd %HOME_DIR%
   - ps: ls -r
 
