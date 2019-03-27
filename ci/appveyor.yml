@@ -20,13 +20,11 @@ before_build:
       | % { $_.Matches } | % { $_.Value })
   - cmd: mvn dependency:get -Dartifact=com.github.emc-mongoose:mongoose-storage-driver-nio:LATEST
   - cmd: mvn dependency:get -Dartifact=com.github.emc-mongoose:mongoose-storage-driver-coop:LATEST
-#  - cmd: mvn dependency:get -Dartifact=com.github.emc-mongoose:mongoose-base:LATEST
+  - cmd: mvn dependency:get -Dartifact=com.github.emc-mongoose:mongoose-base:LATEST
   - cmd: cd %MAVEN_HOME%
-  - ps: ls -r %HOME_DIR%
   - cmd: mkdir %HOME_DIR%
   - ps: ls -r
-  - cmd: ECHO %MAVEN_HOME%
-  - ps: cp %MAVEN_HOME%\mongoose-storage-driver-coop\*\mongoose-storage-driver-coop-*.jar %HOME_DIR%
+  - ps: cp %MAVEN_HOME%\mongoose-storage-driver-coop\**\mongoose-storage-driver-coop-*.jar %HOME_DIR%
   - cmd: COPY %MAVEN_HOME%\mongoose-storage-driver-nio\4.2.2\mongoose-storage-driver-nio-4.2.2.jar  %HOME_DIR%
   - cmd: COPY %MAVEN_HOME%\mongoose-storage-driver-coop\*\mongoose-storage-driver-coop-*.jar %HOME_DIR%
   - cmd: COPY %MAVEN_HOME%\mongoose-base\4.2.1\mongoose-base-4.2.1.jar %HOME_DIR%
