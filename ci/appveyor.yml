@@ -21,6 +21,7 @@ before_build:
   - cmd: mvn dependency:get -Dartifact=com.github.emc-mongoose:mongoose-storage-driver-nio:LATEST
   - cmd: mvn dependency:get -Dartifact=com.github.emc-mongoose:mongoose-storage-driver-coop:LATEST
   - cmd: mvn dependency:get -Dartifact=com.github.emc-mongoose:mongoose-base:LATEST
+  - cmd: ECHO %MAVEN_HOME%
   - cmd: COPY %MAVEN_HOME%\mongoose-storage-driver-nio\4.2.1\mongoose-storage-driver-nio-4.2.1.jar  %HOME_DIR%
   - cmd: COPY %MAVEN_HOME%\mongoose-storage-driver-coop\4.2.1\mongoose-storage-driver-coop-4.2.1.jar %HOME_DIR%
   - cmd: COPY %MAVEN_HOME%\mongoose-base\4.2.1\mongoose-base-4.2.1.jar %HOME_DIR%
