@@ -9,10 +9,19 @@ environment:
   PYTHON_VERSION: 3.7
   PYTHON_ARCH: 64
 
+before_build:
+  - cmd: mvn dependency:get -Dartifact=com.github.emc-mongoose:mongoose-storage-driver-nio:LATEST
+  - cmd: mvn dependency:get -Dartifact=com.github.emc-mongoose:mongoose-storage-driver-coop:LATEST
+  - cmd: mvn dependency:get -Dartifact=com.github.emc-mongoose:mongoose-base:LATEST
+#  - cmd: COPY
+#  - cmd: COPY
+#  - cmd: COPY
+
 build: off
 build_script:
-  - cmd: cd %HOME_DIR%
+  - cmd: cd %DRIVER_DIR%
   - cmd: gradlew.bat clean jar
+  - cmd: git
 
 before_test:
   - ps: >
