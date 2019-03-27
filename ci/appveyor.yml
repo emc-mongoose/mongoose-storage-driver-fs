@@ -24,7 +24,7 @@ before_build:
   - cmd: cd %MAVEN_HOME%
   - cmd: mkdir %HOME_DIR%
   - ps: cp mongoose-*\**\mongoose-*.jar %HOME_DIR%
-  - ps: cd %MAVEN_HOME%
+  - cmd: cd %HOME_DIR%
   - ps: ls -r
 
 build: off
