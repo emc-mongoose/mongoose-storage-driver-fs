@@ -23,7 +23,6 @@ build_script:
   - cmd: cd %DRIVER_DIR%
 # build driver fs
   - cmd: gradlew.bat clean jar
-  - cmd: git
 
 before_test:
   - cmd: mkdir %EXT_DIR%
