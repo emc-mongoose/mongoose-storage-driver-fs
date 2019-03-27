@@ -3,6 +3,7 @@ image:
 
 environment:
   JAVA_HOME: "C:\\Progra~1\\Java\\jdk11"
+  MAVEN_HOME: "%M2_HOME%\\repository\\com\\github\\emc-mongoose\\"
   HOME_DIR: C:\projects\mongoose-storage-driver-fs
   PATH_TO_TEST_LOGS: "C:\\projects\\mongoose-storage-driver-fs\\\build\\robotest"
   PYTHON: "C:\\Python37-x64"
@@ -13,7 +14,7 @@ before_build:
   - cmd: mvn dependency:get -Dartifact=com.github.emc-mongoose:mongoose-storage-driver-nio:LATEST
   - cmd: mvn dependency:get -Dartifact=com.github.emc-mongoose:mongoose-storage-driver-coop:LATEST
   - cmd: mvn dependency:get -Dartifact=com.github.emc-mongoose:mongoose-base:LATEST
-#  - cmd: COPY
+  - cmd: COPY %MAVEN_HOME%\mongoose-storage-driver-nio\4.2.1\mongoose-storage-driver-nio.jar
 #  - cmd: COPY
 #  - cmd: COPY
 
