@@ -29,6 +29,7 @@ before_test:
       |  where { $_ -match "mongoose-base-"} | Select-String -Pattern '\b\d\.\d\.\d\b' -AllMatches
       | % { $_.Matches } | % { $_.Value })
 
+  - cmd: ECHO %BASE_VERSION%
   - cmd: set EXT_DIR=C:\Users\appveyor\.mongoose\%BASE_VERSION%\ext\
   - cmd: mkdir %EXT_DIR%
   #  copy coop, nio drivers to .mongoose/ext
