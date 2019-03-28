@@ -25,8 +25,8 @@ build_script:
 
 before_test:
   - ps: >
-      $env:BASE_VERSION=$(ls -r $env:MAVEN_HOME
-      |  where { $_ -match "mongoose-base-"} | Select-String -Pattern '\b\d\.\d\.\d\b' -AllMatches
+      $env:BASE_VERSION=$(type build.gradle
+      |  where { $_ -match "mongooseBase"} | Select-String -Pattern '\b\d\.\d\.\d\b' -AllMatches
       | % { $_.Matches } | % { $_.Value })
 
   - cmd: ECHO %BASE_VERSION%
