@@ -16,11 +16,18 @@ before_build:
       $env:BASE_VERSION=$(type build.gradle
       |  where { $_ -match "mongooseBase"} | Select-String -Pattern '\b\d\.\d\.\d\b' -AllMatches
       | % { $_.Matches } | % { $_.Value })
-
-  - cmd: ECHO %BASE_VERSION%
+  - ps: >
+      $env:COOP_VERSION=$(type build.gradle
+      |  where { $_ -match "mongooseStorageDriverCoop"} | Select-String -Pattern '\b\d\.\d\.\d\b' -AllMatches
+      | % { $_.Matches } | % { $_.Value })
+  - ps: >
+      $env:NIO_VERSION=$(type build.gradle
+      |  where { $_ -match "mongooseStorageDriverNio"} | Select-String -Pattern '\b\d\.\d\.\d\b' -AllMatches
+      | % { $_.Matches } | % { $_.Value })
+  - cmd: ECHO %BASE_VERSION% %COOP_VERSION% %NIO_VERSION%
   - cmd: mvn -v
-  - cmd: mvn dependency:get -Dartifact=com.github.emc-mongoose:mongoose-storage-driver-nio:LATEST
-  - cmd: mvn dependency:get -Dartifact=com.github.emc-mongoose:mongoose-storage-driver-coop:LATEST
+  - cmd: mvn dependency:get -Dartifact=com.github.emc-mongoose:mongoose-storage-driver-nio:%NIO_VERSION%
+  - cmd: mvn dependency:get -Dartifact=com.github.emc-mongoose:mongoose-storage-driver-coop:%COOP_VERSION%
   - cmd: mvn dependency:get -Dartifact=com.github.emc-mongoose:mongoose-base:%BASE_VERSION%
 
 build: off
