@@ -6,7 +6,7 @@ environment:
   MAVEN_HOME: "C:\\Users\\appveyor\\.m2\\repository\\com\\github\\emc-mongoose"
   HOME_DIR: "C:\\Users\\appveyor\\"
   DRIVER_DIR: "C:\\projects\\mongoose-storage-driver-fs\\"
-  EXT_DIR: "C:\\Users\\appveyor\\.mongoose\\ext\\"
+  EXT_DIR: "C:\\Users\\appveyor\\.mongoose\\4.2.3\\ext\\"
   PATH_TO_TEST_LOGS: "C:\\projects\\mongoose-storage-driver-fs\\build\\robotest"
   PYTHON: "C:\\Python37-x64"
   PYTHON_VERSION: 3.7
@@ -25,6 +25,10 @@ build_script:
   - cmd: gradlew.bat clean jar
 
 before_test:
+  - ps: >
+      $env:MONGOOSE_VERSION=$(ls -r %MAVEN_HOME%
+      |  where { $_ -match "mongoose-base-"} | Select-String -Pattern '\b\d\.\d\.\d\b' -AllMatches
+      | % { $_.Matches } | % { $_.Value })
   - cmd: mkdir %EXT_DIR%
   #  copy coop, nio drivers to .mongoose/ext
   - cmd: for /R %MAVEN_HOME% %%f in (mongoose-storage-driver-*.jar) do COPY %%f %EXT_DIR%
@@ -33,10 +37,7 @@ before_test:
   #  copy mongoose-base.jar to home dir
   - cmd: for /R %MAVEN_HOME% %%f in (mongoose-base-*.jar) do COPY %%f %HOME_DIR%
 
-#  - ps: >
-#        $env:MONGOOSE_VERSION=$(type base\src\main\resources\config\defaults.yaml
-#        |  where { $_ -match "version"} | Select-String -Pattern '\b\d\.\d\.\d\b' -AllMatches
-#        | % { $_.Matches } | % { $_.Value })
+
   - cmd: set BASE_VERSION=4.2.3
   - cmd: set PYTHONPATH=%DRIVER_DIR%\src\test\robot\lib;C:\Python37-x64\lib\site-packages
   - cmd: set PATH=%PATH%;C:\Python37-x64;C:\Python37-x64\Scripts
