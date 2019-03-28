@@ -28,6 +28,7 @@ before_test:
       $env:BASE_VERSION=$(type build.gradle
       |  where { $_ -match "mongooseBase"} | Select-String -Pattern '\b\d\.\d\.\d\b' -AllMatches
       | % { $_.Matches } | % { $_.Value })
+
   - cmd: ECHO %BASE_VERSION%
   - cmd: set EXT_DIR=C:\Users\appveyor\.mongoose\%BASE_VERSION%\ext\
   - cmd: mkdir %EXT_DIR%
