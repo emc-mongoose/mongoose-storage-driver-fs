@@ -25,7 +25,7 @@ build_script:
 
 before_test:
   - ps: >
-      $env:BASE_VERSION=$(ls -r %MAVEN_HOME%
+      $env:BASE_VERSION=$(ls -r $env:MAVEN_HOME
       |  where { $_ -match "mongoose-base-"} | Select-String -Pattern '\b\d\.\d\.\d\b' -AllMatches
       | % { $_.Matches } | % { $_.Value })
 
