@@ -12,10 +12,16 @@ environment:
   PYTHON_ARCH: 64
 
 before_build:
+  - ps: >
+      $env:BASE_VERSION=$(type build.gradle
+      |  where { $_ -match "mongooseBase"} | Select-String -Pattern '\b\d\.\d\.\d\b' -AllMatches
+      | % { $_.Matches } | % { $_.Value })
+
+  - cmd: ECHO %BASE_VERSION%
   - cmd: mvn -v
   - cmd: mvn dependency:get -Dartifact=com.github.emc-mongoose:mongoose-storage-driver-nio:LATEST
   - cmd: mvn dependency:get -Dartifact=com.github.emc-mongoose:mongoose-storage-driver-coop:LATEST
-  - cmd: mvn dependency:get -Dartifact=com.github.emc-mongoose:mongoose-base:LATEST
+  - cmd: mvn dependency:get -Dartifact=com.github.emc-mongoose:mongoose-base:%BASE_VERSION%
 
 build: off
 build_script:
@@ -24,12 +30,6 @@ build_script:
   - cmd: gradlew.bat clean jar
 
 before_test:
-  - ps: >
-      $env:BASE_VERSION=$(type build.gradle
-      |  where { $_ -match "mongooseBase"} | Select-String -Pattern '\b\d\.\d\.\d\b' -AllMatches
-      | % { $_.Matches } | % { $_.Value })
-
-  - cmd: ECHO %BASE_VERSION%
   - cmd: set EXT_DIR=C:\Users\appveyor\.mongoose\%BASE_VERSION%\ext\
   - cmd: mkdir %EXT_DIR%
   #  copy coop, nio drivers to .mongoose/ext
