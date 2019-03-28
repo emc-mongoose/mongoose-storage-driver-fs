@@ -40,8 +40,8 @@ ext {
 		junit              : "4.12",
 		log4j              : "2.8.2",
 		mongooseBase       : "4.2.3",
-		mongooseStorageDriverCoop: "4.2.1",
-		mongooseStorageDriverNio: "4.2.1",
+		mongooseStorageDriverCoop: "4.2.3",
+		mongooseStorageDriverNio: "4.2.3",
 		scala              : "2.12.6",
 		slf4j              : "1.7.25",
 	]
