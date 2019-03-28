@@ -8,8 +8,8 @@ Library  String
 Test Teardown  Remove Files
 
 *** Variables ***
-${HOME_DIR}   C:\\projects\\mongoose-storage-driver-fs
-${ITEM_OUTPUT_PATH}     ${HOME_DIR}\\build\\fs-results
+${HOME_DIR}     C:\\Users\\appveyor
+${ITEM_OUTPUT_PATH}     ${HOME_DIR}\\output
 ${ITEM_COUNT}    10
 ${ITEM_SIZE}    10KB
 ${STEP_ID}   win_fs_robotest
@@ -33,7 +33,7 @@ Windows Get Log Directory
 
 Windows Start Mongoose
 	[Arguments]  ${base_version}
-	${MONGOOSE_JAR_PATH} =  Catenate  ${HOME_DIR}\\build\\libs\\mongoose-${base_version}.jar
+	${MONGOOSE_JAR_PATH} =  Catenate  ${HOME_DIR}\\mongoose-base-${base_version}.jar
 	${java_home} =  Get Environment Variable  JAVA_HOME
 	${cmd} =  Catenate  SEPARATOR=\t
 	...  ${java_home}\\bin\\java -jar ${MONGOOSE_JAR_PATH}

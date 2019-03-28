@@ -35,6 +35,21 @@ additional VFS layer. The measured rates may be:
 
 # Usage
 
+Get the latest pre-built jar file which is available at:
+http://repo.maven.apache.org/maven2/com/github/emc-mongoose/mongoose-storage-driver-fs/
+The jar file may be downloaded manually and placed into the `<USER_HOME_DIR>/.mongoose/<VERSION>/ext`
+directory of Mongoose to be automatically loaded into the runtime.
+
+```bash
+java -jar mongoose-<VERSION>.jar \
+    --storage-driver-type=fs \
+    --storage-net-node-addrs=<NODE_IP_ADDRS> \
+    --storage-net-node-port=<NODE_PORT> \
+    ...
+```
+
+## Standalone
+
 ```bash
 java -jar mongoose-<VERSION>.jar \
     --storage-driver-type=fs \
