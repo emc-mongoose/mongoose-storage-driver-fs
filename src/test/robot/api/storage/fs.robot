@@ -33,7 +33,7 @@ Windows Get Log Directory
 
 Windows Start Mongoose
 	[Arguments]  ${base_version}
-	${MONGOOSE_JAR_PATH} =  Catenate  ${HOME_DIR}\\mongoose-${base_version}.jar
+	${MONGOOSE_JAR_PATH} =  Catenate  ${HOME_DIR}\\mongoose-base-${base_version}.jar
 	${java_home} =  Get Environment Variable  JAVA_HOME
 	${cmd} =  Catenate  SEPARATOR=\t
 	...  ${java_home}\\bin\\java -jar ${MONGOOSE_JAR_PATH}
