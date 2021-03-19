@@ -18,6 +18,6 @@ COPY --from=0 /build/libs/mongoose-storage-driver-fs-${VERSION}.jar /tmp/
 ADD ci/docker/entrypoint_storage_driver_fs.sh /opt/mongoose/entrypoint_storage_driver_fs.sh
 RUN mv -f /tmp/mongoose-storage-driver-fs-*.jar $HOME/.mongoose/${BASE_VERSION}/ext/ \
     && chmod +x /opt/mongoose/entrypoint_storage_driver_fs.sh \
-    && curl http://repo.maven.apache.org/maven2/com/github/emc-mongoose/mongoose-storage-driver-coop/${STORAGE_DRIVER_COOP_VERSION}/mongoose-storage-driver-coop-${STORAGE_DRIVER_COOP_VERSION}.jar -o $HOME/.mongoose/${BASE_VERSION}/ext/mongoose-storage-driver-coop.jar \
-    && curl http://repo.maven.apache.org/maven2/com/github/emc-mongoose/mongoose-storage-driver-nio/${STORAGE_DRIVER_NIO_VERSION}/mongoose-storage-driver-nio-${STORAGE_DRIVER_NIO_VERSION}.jar -o $HOME/.mongoose/${BASE_VERSION}/ext/mongoose-storage-driver-nio.jar
+    && curl https://repo.maven.apache.org/maven2/com/github/emc-mongoose/mongoose-storage-driver-coop/${STORAGE_DRIVER_COOP_VERSION}/mongoose-storage-driver-coop-${STORAGE_DRIVER_COOP_VERSION}.jar -o $HOME/.mongoose/${BASE_VERSION}/ext/mongoose-storage-driver-coop.jar \
+    && curl https://repo.maven.apache.org/maven2/com/github/emc-mongoose/mongoose-storage-driver-nio/${STORAGE_DRIVER_NIO_VERSION}/mongoose-storage-driver-nio-${STORAGE_DRIVER_NIO_VERSION}.jar -o $HOME/.mongoose/${BASE_VERSION}/ext/mongoose-storage-driver-nio.jar
 ENTRYPOINT ["/opt/mongoose/entrypoint_storage_driver_fs.sh"]
