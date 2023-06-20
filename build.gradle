@@ -32,8 +32,8 @@ repositories {
 ext {
 
 	depVersion = [
-		commonsJava: "[1.4.1,)",
-		log4j: "2.8.2",
+		commonsJava: "2.1.5",
+		log4j: "2.20.0",
 		mongoose: "[3.,4.)",
 	]
 }
